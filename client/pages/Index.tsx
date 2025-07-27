@@ -39,8 +39,17 @@ export default function Index() {
     setIsProcessing(true);
 
     try {
-      const width = imageElement.naturalWidth;
-      const height = imageElement.naturalHeight;
+      let width = imageElement.naturalWidth;
+      let height = imageElement.naturalHeight;
+
+      // ⬇️ Limit size to 768px max on either dimension
+      const maxDim = 768;
+      if (width > maxDim || height > maxDim) {
+        const scale = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      
       const formData = new FormData();
       formData.append("file", file);
       formData.append("width", String(width));
@@ -80,10 +89,10 @@ export default function Index() {
         const xs = polygon.map(p => p[0]);
         const ys = polygon.map(p => p[1]);
 
-        const minX = Math.min(...xs);
-        const maxX = Math.max(...xs);
-        const minY = Math.min(...ys);
-        const maxY = Math.max(...ys);
+        const minX = xs.reduce((a, b) => Math.min(a, b), Infinity);
+        const maxX = xs.reduce((a, b) => Math.max(a, b), -Infinity);
+        const minY = ys.reduce((a, b) => Math.min(a, b), Infinity);
+        const maxY = ys.reduce((a, b) => Math.max(a, b), -Infinity);
 
         return {
           id: `person-${i}`,
@@ -332,28 +341,54 @@ export default function Index() {
 
                   // Get the displayed image dimensions (actual rendered size)
                   const imgElement = imageRef.current;
-                  const displayedWidth = imgElement.offsetWidth;
-                  const displayedHeight = imgElement.offsetHeight;
+                  // const displayedWidth = imgElement.offsetWidth;
+                  // const displayedHeight = imgElement.offsetHeight;
+                  // const naturalWidth = imgElement.naturalWidth;
+                  // const naturalHeight = imgElement.naturalHeight;
+
+                  // // Calculate scale factors for the displayed image vs natural size
+                  // const scaleX = displayedWidth / naturalWidth;
+                  // const scaleY = displayedHeight / naturalHeight;
                   const naturalWidth = imgElement.naturalWidth;
                   const naturalHeight = imgElement.naturalHeight;
+                  const containerWidth = imgElement.offsetWidth;
+                  const containerHeight = imgElement.offsetHeight;
 
-                  // Calculate scale factors for the displayed image vs natural size
-                  const scaleX = displayedWidth / naturalWidth;
-                  const scaleY = displayedHeight / naturalHeight;
+                  const imageRatio = naturalWidth / naturalHeight;
+                  const containerRatio = containerWidth / containerHeight;
+
+                  let renderedWidth = containerWidth;
+                  let renderedHeight = containerHeight;
+
+                  if (imageRatio > containerRatio) {
+                    // Image is wider than container — letterboxing top/bottom
+                    renderedHeight = containerWidth / imageRatio;
+                  } else {
+                    // Image is taller than container — letterboxing left/right
+                    renderedWidth = containerHeight * imageRatio;
+                  }
+
+                  // Offsets to center the image inside the container (object-contain behavior)
+                  const offsetX = (containerWidth - renderedWidth) / 2;
+                  const offsetY = (containerHeight - renderedHeight) / 2;
+
+                  const scaleX = renderedWidth / naturalWidth;
+                  const scaleY = renderedHeight / naturalHeight;
+
 
                   // Convert polygon coordinates to SVG coordinates
                   const polygonPoints = person.polygon
-                    .map(([x, y]) => `${x * scaleX},${y * scaleY}`)
-                    .join(' ');
+                  .map(([x, y]) => `${x * scaleX + offsetX},${y * scaleY + offsetY}`)
+                  .join(" ");
 
                   return (
                     <div key={person.id} className="absolute inset-0">
                       <svg
                         className="absolute inset-0 w-full h-full pointer-events-none"
                         style={{ zIndex: 10 }}
-                        viewBox={`0 0 ${displayedWidth} ${displayedHeight}`}
-                        width={displayedWidth}
-                        height={displayedHeight}
+                        viewBox={`0 0 ${containerWidth} ${containerHeight}`}
+                        width={containerWidth}
+                        height={containerHeight}
                       >
                         <polygon
                           points={polygonPoints}
@@ -375,8 +410,8 @@ export default function Index() {
                         <div
                           className="absolute transform -translate-x-1/2 -translate-y-full"
                           style={{
-                            left: `${((person.bbox.x + person.bbox.width/2) * scaleX / displayedWidth) * 100}%`,
-                            top: `${(person.bbox.y * scaleY / displayedHeight) * 100}%`,
+                            left: `${((person.bbox.x + person.bbox.width/2) * scaleX + offsetX)}px`,
+                            top: `${(person.bbox.y * scaleY + offsetY)}px`,
                             zIndex: 20
                           }}
                         >
