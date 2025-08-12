@@ -233,11 +233,17 @@ export default function Index() {
     setShuffleState(prev => ({ ...prev, isShuffling: true, selectedId: null }));
 
     let shuffleCount = 0;
-    const maxShuffles = 20;
+    const maxShuffles = 15;
 
     const shuffleInterval = setInterval(() => {
       const randomPerson = people[Math.floor(Math.random() * people.length)];
       setShuffleState(prev => ({ ...prev, highlightedId: randomPerson.id }));
+
+      // Play shuffle sound
+      if (shuffleCount < maxShuffles - 2) {
+        const shuffleSound = new Audio('/shuffle.mp3');
+        shuffleSound.play().catch(e => console.error('Failed to play shuffle sound:', e));
+      }
 
       shuffleCount++;
       if (shuffleCount >= maxShuffles) {
@@ -248,8 +254,12 @@ export default function Index() {
           selectedId: finalPerson.id,
           highlightedId: null,
         });
+        
+        // Play result sound
+        const resultSound = new Audio('/result.mp3');
+        resultSound.play().catch(e => console.error('Failed to play result sound:', e));
       }
-    }, 100);
+    }, 150);
   }, [people]);
 
   const resetSelection = useCallback(() => {
