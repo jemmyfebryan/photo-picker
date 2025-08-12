@@ -2,9 +2,13 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Shuffle, Camera, Sparkles, RefreshCw } from "lucide-react";
+import { Upload, Shuffle, Camera, Sparkles, RefreshCw, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IntType } from "three/src/constants.js";
+import { Header } from "../components/Header";
+import { Footer } from "../components/Footer";
+import { Features } from "../components/Features";
+import { HowItWorks } from "../components/HowItWorks";
+import { About } from "../components/About";
 
 interface SegmentedPerson {
   id: string;
@@ -355,35 +359,71 @@ export default function Index() {
   }, [updateImageSize]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-6 md:mb-8">
-          <div className="flex items-center justify-center gap-2 md:gap-3 mb-4">
-            <div className="p-2 md:p-3 bg-primary/10 rounded-full">
-              <Camera className="w-6 h-6 md:w-8 md:h-8 text-primary" />
-            </div>
-            <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              PhotoPicker
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-sm md:text-lg max-w-md mx-auto px-4">
-            Upload an image to segment objects and randomly select one with our smart shuffling and detection algorithm
-          </p>
-        </div>
+    <div className="min-h-screen bg-background">
+      <Header />
 
-        {!image ? (
-          /* Upload Area */
-          <Card className="max-w-2xl mx-auto">
-            <div
-              className={cn(
-                "border-2 border-dashed border-border rounded-lg p-6 md:p-12 text-center transition-all duration-200",
-                isDragging && "border-primary bg-primary/5 scale-105"
-              )}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
+      {/* Hero Section */}
+      <section className="relative py-20 bg-gradient-to-br from-background via-secondary/20 to-background overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="container mx-auto px-4 relative">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <Sparkles className="w-4 h-4" />
+              AI-Powered Object Detection
+            </div>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent leading-tight">
+              Smart Photo
+              <br />
+              Object Selection
+            </h1>
+            <p className="text-muted-foreground text-lg md:text-xl max-w-3xl mx-auto mb-8 leading-relaxed">
+              Transform your photo workflow with advanced AI. Upload any image and let our intelligent algorithms detect, segment, and randomly select objects with stunning visual precision.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <a href="#photo-picker" className="inline-flex">
+                <Button size="lg" className="gap-2 text-lg px-8 py-6">
+                  <Camera className="w-5 h-5" />
+                  Try PhotoPicker
+                </Button>
+              </a>
+              <a href="#how-it-works" className="inline-flex">
+                <Button variant="outline" size="lg" className="gap-2 text-lg px-8 py-6">
+                  <ArrowDown className="w-5 h-5" />
+                  Learn More
+                </Button>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Features />
+      <HowItWorks />
+
+      {/* Main PhotoPicker Application */}
+      <section id="photo-picker" className="py-20 bg-gradient-to-b from-background to-secondary/10">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Try PhotoPicker Now
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Experience the power of AI-driven object selection. Upload your image and watch our technology work its magic.
+            </p>
+          </div>
+
+          {!image ? (
+            /* Upload Area */
+            <Card className="max-w-3xl mx-auto shadow-2xl">
+              <div
+                className={cn(
+                  "border-2 border-dashed border-border rounded-xl p-8 md:p-16 text-center transition-all duration-300",
+                  isDragging && "border-primary bg-primary/5 scale-105 shadow-lg"
+                )}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
               {cameraState === 'starting' || cameraState === 'active' ? (
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative w-full max-w-md aspect-video bg-black rounded-lg overflow-hidden">
@@ -443,27 +483,29 @@ export default function Index() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-3 md:gap-4">
-                  <div className="p-3 md:p-4 bg-primary/10 rounded-full">
-                    <Upload className="w-8 h-8 md:w-12 md:h-12 text-primary" />
+                <div className="flex flex-col items-center gap-4 md:gap-6">
+                  <div className="p-4 md:p-6 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full">
+                    <Upload className="w-12 h-12 md:w-16 md:h-16 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg md:text-xl font-semibold mb-2">Drop your image here</h3>
-                    <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                      or choose from device or camera
+                    <h3 className="text-xl md:text-2xl font-bold mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Drop your image here
+                    </h3>
+                    <p className="text-muted-foreground mb-6 text-base md:text-lg max-w-md mx-auto">
+                      Upload any image to begin AI-powered object detection and selection
                     </p>
-                    <div className="flex gap-3">
-                      <Button onClick={openNewImage} size="lg" className="gap-2">
-                        <Upload className="w-4 h-4 md:w-5 md:h-5" />
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <Button onClick={openNewImage} size="lg" className="gap-2 text-lg px-8">
+                        <Upload className="w-5 h-5" />
                         Choose Image
                       </Button>
                       <Button
                         onClick={startCameraHandler}
                         variant="secondary"
                         size="lg"
-                        className="gap-2"
+                        className="gap-2 text-lg px-8"
                       >
-                        <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                        <Camera className="w-5 h-5" />
                         Use Camera
                       </Button>
                     </div>
@@ -472,65 +514,64 @@ export default function Index() {
               )}
             </div>
           </Card>
-        ) : (
-          /* Image Analysis Area */
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                <Badge variant="secondary" className="text-xs md:text-sm">
-                  {people.length} objects segmented
-                </Badge>
-                {shuffleState.selectedId && (
-                  <Badge className="bg-accent text-accent-foreground text-xs md:text-sm">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Selected!
-                  </Badge>
-                )}
-              </div>
-              <div className="flex gap-2 md:gap-3 flex-wrap">
-                <Button
-                  variant="outline"
-                  onClick={resetSelection}
-                  disabled={isProcessing || shuffleState.isShuffling}
-                  size="sm"
-                  className="md:h-10"
-                >
-                  <RefreshCw className="w-4 h-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">Reset</span>
-                </Button>
-                <Button
-                  onClick={shufflePeople}
-                  disabled={people.length === 0 || isProcessing || shuffleState.isShuffling}
-                  className="gap-1 md:gap-2"
-                  size="sm"
-                >
-                  <Shuffle className={cn("w-4 h-4", shuffleState.isShuffling && "animate-spin")} />
-                  {shuffleState.isShuffling ? "Shuffling..." : "Shuffle"}
-                </Button>
-                <Button variant="secondary" onClick={openNewImage} size="sm" className="md:h-10 gap-1">
-                  <Upload className="w-4 h-4" />
-                  <span className="hidden sm:inline">New Image</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setImage(null);
-                    setPeople([]);
-                    setShuffleState({ isShuffling: false, selectedId: null, highlightedId: null });
-                    startCameraHandler();
-                  }}
-                  size="sm"
-                  className="md:h-10 gap-1"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span className="hidden sm:inline">Camera</span>
-                </Button>
-              </div>
-            </div>
+          ) : (
+            /* Image Analysis Area */
+            <div className="max-w-5xl mx-auto space-y-8">
+              {/* Controls */}
+              <Card className="p-6 bg-gradient-to-r from-card to-secondary/20">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Badge variant="secondary" className="text-sm px-3 py-1">
+                      {people.length} objects detected
+                    </Badge>
+                    {shuffleState.selectedId && (
+                      <Badge className="bg-accent text-accent-foreground text-sm px-3 py-1">
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        Object Selected!
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-3 flex-wrap">
+                    <Button
+                      variant="outline"
+                      onClick={resetSelection}
+                      disabled={isProcessing || shuffleState.isShuffling}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Reset
+                    </Button>
+                    <Button
+                      onClick={shufflePeople}
+                      disabled={people.length === 0 || isProcessing || shuffleState.isShuffling}
+                      className="gap-2"
+                    >
+                      <Shuffle className={cn("w-4 h-4", shuffleState.isShuffling && "animate-spin")} />
+                      {shuffleState.isShuffling ? "Shuffling..." : "Shuffle Objects"}
+                    </Button>
+                    <Button variant="secondary" onClick={openNewImage} className="gap-2">
+                      <Upload className="w-4 h-4" />
+                      New Image
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setImage(null);
+                        setPeople([]);
+                        setShuffleState({ isShuffling: false, selectedId: null, highlightedId: null });
+                        startCameraHandler();
+                      }}
+                      className="gap-2"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Camera
+                    </Button>
+                  </div>
+                </div>
+              </Card>
 
-            {/* Image Display */}
-            <Card className="overflow-hidden">
+              {/* Image Display */}
+              <Card className="overflow-hidden shadow-2xl">
               <div className="relative">
                 <img
                   ref={imageRef}
@@ -652,40 +693,47 @@ export default function Index() {
               </div>
             </Card>
 
-            {/* Results */}
-            {shuffleState.selectedId && (
-              <Card className="p-4 md:p-6 text-center bg-gradient-to-r from-accent/10 to-primary/10">
-                <div className="flex items-center justify-center gap-2 md:gap-3 mb-4">
-                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-accent" />
-                  <h3 className="text-lg md:text-xl font-semibold">Selection Complete!</h3>
-                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-accent" />
-                </div>
-                <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                  The algorithm has selected an object from your image. Want to try again?
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={shufflePeople} className="gap-2">
-                    <Shuffle className="w-4 h-4" />
-                    Shuffle Again
-                  </Button>
-                  <Button variant="secondary" onClick={openNewImage}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Try New Image
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </div>
-        )}
+              {/* Results */}
+              {shuffleState.selectedId && (
+                <Card className="p-8 text-center bg-gradient-to-r from-accent/10 via-primary/5 to-accent/10 border-accent/20 shadow-xl">
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <Sparkles className="w-8 h-8 text-accent animate-pulse" />
+                    <h3 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+                      Object Selected!
+                    </h3>
+                    <Sparkles className="w-8 h-8 text-accent animate-pulse" />
+                  </div>
+                  <p className="text-muted-foreground mb-8 text-lg max-w-2xl mx-auto">
+                    Our AI has successfully identified and selected an object from your image.
+                    Ready for another round or want to try a different image?
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button onClick={shufflePeople} size="lg" className="gap-2 text-lg px-8">
+                      <Shuffle className="w-5 h-5" />
+                      Shuffle Again
+                    </Button>
+                    <Button variant="secondary" onClick={openNewImage} size="lg" className="gap-2 text-lg px-8">
+                      <Upload className="w-5 h-5" />
+                      Try New Image
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </div>
+      <About />
+      <Footer />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
     </div>
   );
 }
