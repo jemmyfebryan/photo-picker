@@ -17,6 +17,12 @@ import { Features } from "../components/Features";
 import { HowItWorks } from "../components/HowItWorks";
 import { About } from "../components/About";
 
+// Model mapping for segmentation endpoints
+const MODEL_MAP = {
+  "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect",
+  "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new"
+};
+
 interface SegmentedPerson {
   id: string;
   polygon: Array<[number, number]>; // Array of [x, y] coordinates
@@ -34,6 +40,7 @@ interface ShuffleState {
 export default function Index() {
   const [image, setImage] = useState<string | null>(null);
   const [people, setPeople] = useState<SegmentedPerson[]>([]);
+  const [model, setModel] = useState<keyof typeof MODEL_MAP>("default");
   const [shuffleState, setShuffleState] = useState<ShuffleState>({
     isShuffling: false,
     selectedId: null,
@@ -71,7 +78,7 @@ export default function Index() {
         formData.append("threshold", String(0));
 
         const response = await fetch(
-          "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/",
+          MODEL_MAP[model],
           {
             method: "POST",
             body: formData,
@@ -210,7 +217,7 @@ export default function Index() {
         setIsProcessing(false);
       }
     },
-    [],
+    [model],
   );
 
   const handleImageUpload = useCallback(
@@ -568,6 +575,28 @@ export default function Index() {
                         Upload any image to begin AI-powered object detection
                         and selection
                       </p>
+                      
+                      {/* Model selection dropdown */}
+                      {Object.keys(MODEL_MAP).length > 1 && (
+                        <div className="mb-6 flex flex-col items-center">
+                          <label htmlFor="model-select" className="text-sm font-medium text-muted-foreground mb-2">
+                            Select segmentation model:
+                          </label>
+                          <select
+                            id="model-select"
+                            value={model}
+                            onChange={(e) => setModel(e.target.value as keyof typeof MODEL_MAP)}
+                            className="bg-background border border-input rounded-md px-4 py-2 w-full max-w-xs text-sm"
+                          >
+                            {Object.entries(MODEL_MAP).map(([key]) => (
+                              <option key={key} value={key}>
+                                {key}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
                       <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Button
                           onClick={openNewImage}
@@ -847,7 +876,7 @@ export default function Index() {
         </div>
       </section>
 
-      <About />
+      {/* <About /> */}
       <Footer />
 
       <input

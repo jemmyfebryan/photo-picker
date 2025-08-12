@@ -40,18 +40,18 @@ export const Header = () => {
             >
               How It Works
             </a>
-            <a
+            {/* <a
               href="#about"
               className="text-foreground/80 hover:text-primary transition-colors"
             >
               About
-            </a>
-            <a
+            </a> */}
+            {/* <a
               href="#contact"
               className="text-foreground/80 hover:text-primary transition-colors"
             >
               Contact
-            </a>
+            </a> */}
           </nav>
 
           {/* Mobile Menu Button */}
