@@ -69,7 +69,7 @@ export default function Index() {
         const threshold = 0;
 
         // ⬇️ Limit size to 768px max on either dimension
-        const maxDim = 1024;
+        const maxDim = 768;
         if (width > maxDim || height > maxDim) {
           const scale = Math.min(maxDim / width, maxDim / height);
           width = Math.round(width * scale);
