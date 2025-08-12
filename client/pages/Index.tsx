@@ -84,13 +84,27 @@ export default function Index() {
         formData.append("height", String(height));
         formData.append("threshold", String(0));
 
-        const response = await fetch(
-          MODEL_MAP[model],
-          {
+        // const response = await fetch(
+        //   MODEL_MAP[model],
+        //   {
+        //     method: "POST",
+        //     body: formData,
+        //   },
+        // );
+
+        const url = MODEL_MAP[model];
+        let response = await fetch(url, {
+          method: "POST",
+          body: formData
+        });
+
+        if (response.status === 307) {
+          const location = response.headers.get("Location").replace(/^http:/, "https:");
+          response = await fetch(location, {
             method: "POST",
-            body: formData,
-          },
-        );
+            body: formData
+          });
+        }
 
         const data = await response.json();
 
