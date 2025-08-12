@@ -92,18 +92,32 @@ export default function Index() {
         //   },
         // );
 
-        const url = MODEL_MAP[model];
-        let response = await fetch(url, {
-          method: "POST",
-          body: formData
-        });
 
-        if (response.status === 307) {
-          const location = response.headers.get("Location").replace(/^http:/, "https:");
-          response = await fetch(location, {
-            method: "POST",
-            body: formData
-          });
+
+        // const url = MODEL_MAP[model];
+        // let response = await fetch(url, {
+        //   method: "POST",
+        //   body: formData
+        // });
+
+        let response;
+
+        if (model == "default") {
+          response = await fetch(
+            "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect",
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+        } else if (model == "new") {
+          response = await fetch(
+            "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new",
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
         }
 
         const data = await response.json();
