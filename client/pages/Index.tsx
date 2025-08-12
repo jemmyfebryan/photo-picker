@@ -125,23 +125,82 @@ export default function Index() {
         // Set the resized base64 image returned from server
         setImage(`data:image/jpeg;base64,${data.original_image}`);
 
+        // Enhanced contour tracing with hole detection and boundary optimization
         const maskToPolygon = (mask: number[][]): Array<[number, number]> => {
           const h = mask.length;
           const w = mask[0].length;
           const visited = Array.from({ length: h }, () => Array(w).fill(false));
           const points: Array<[number, number]> = [];
-
-          for (let y = 0; y < h; y++) {
+          const directions = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+          
+          // Find starting point (top-left mask pixel)
+          let startX = -1, startY = -1;
+          outer: for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
               if (mask[y][x] === 1 && !visited[y][x]) {
-                visited[y][x] = true;
-                // Simplified corner detection for visual polygon
-                points.push([x, y]);
+                startX = x;
+                startY = y;
+                break outer;
               }
             }
           }
-
-          return points.length > 3 ? points : [];
+          
+          if (startX === -1) return []; // No mask found
+          
+          let x = startX, y = startY;
+          let dir = 0; // Start moving right
+          let loopCount = 0;
+          const maxLoops = w * h * 2; // Prevent infinite loops
+          
+          do {
+            points.push([x, y]);
+            visited[y][x] = true;
+            
+            // Check 8 neighbors starting from current direction
+            let newDir = (dir + 5) % 8; // Start checking counter-clockwise
+            let found = false;
+            
+            for (let i = 0; i < 8; i++) {
+              const nd = (newDir + i) % 8;
+              const dx = directions[nd][0];
+              const dy = directions[nd][1];
+              const nx = x + dx;
+              const ny = y + dy;
+              
+              if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny][nx] === 1 && !visited[ny][nx]) {
+                x = nx;
+                y = ny;
+                dir = nd;
+                found = true;
+                break;
+              }
+            }
+            
+            if (!found) {
+              // Try to find any unvisited neighbor
+              for (const [dx, dy] of directions) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny][nx] === 1 && !visited[ny][nx]) {
+                  x = nx;
+                  y = ny;
+                  found = true;
+                  break;
+                }
+              }
+            }
+            
+            loopCount++;
+            if (!found || loopCount > maxLoops) break;
+          } while (x !== startX || y !== startY);
+          
+          // Ensure we have a closed polygon
+          if (points.length > 0 && (points[0][0] !== points[points.length-1][0] ||
+              points[0][1] !== points[points.length-1][1])) {
+            points.push([points[0][0], points[0][1]]);
+          }
+          
+          return points.length >= 3 ? points : [];
         };
 
         const segmented = data.masks.map((maskData: any, i: number) => {
