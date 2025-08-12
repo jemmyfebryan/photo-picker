@@ -13,3 +13,15 @@
   from = "/api/*"
   status = 200
   to = "/.netlify/functions/api/:splat"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api_new/*"
+  to = "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new/:splat"
+  status = 200
+  force = true
