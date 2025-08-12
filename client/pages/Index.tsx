@@ -107,7 +107,7 @@ export default function Index() {
         }).then(async (res) => {
           if (res.type === 'opaqueredirect') {
             // If redirected, try again with forced HTTPS
-            return fetch(url.replace('http://', 'https://'), {
+            return fetch("https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect".replace('http://', 'https://'), {
               method: "POST",
               body: formData
             });
