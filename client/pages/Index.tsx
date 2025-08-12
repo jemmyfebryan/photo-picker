@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Shuffle, Camera, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IntType } from "three/src/constants.js";
 
 interface SegmentedPerson {
   id: string;
@@ -41,9 +42,10 @@ export default function Index() {
     try {
       let width = imageElement.naturalWidth;
       let height = imageElement.naturalHeight;
+      const threshold = 0;
 
       // ⬇️ Limit size to 768px max on either dimension
-      const maxDim = 768;
+      const maxDim = 1024;
       if (width > maxDim || height > maxDim) {
         const scale = Math.min(maxDim / width, maxDim / height);
         width = Math.round(width * scale);
@@ -54,6 +56,7 @@ export default function Index() {
       formData.append("file", file);
       formData.append("width", String(width));
       formData.append("height", String(height));
+      formData.append("threshold", String(0));
 
       const response = await fetch("https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/", {
         method: "POST",
@@ -65,23 +68,83 @@ export default function Index() {
       // Set the resized base64 image returned from server
       setImage(`data:image/jpeg;base64,${data.original_image}`);
 
+      // Improved contour tracing for mask polygon with simplification
       const maskToPolygon = (mask: number[][]): Array<[number, number]> => {
         const h = mask.length;
         const w = mask[0].length;
         const visited = Array.from({ length: h }, () => Array(w).fill(false));
         const points: Array<[number, number]> = [];
-
-        for (let y = 0; y < h; y++) {
+        const directions = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+        
+        // Find starting point (top-left mask pixel)
+        let startX = -1, startY = -1;
+        outer: for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
-            if (mask[y][x] === 1 && !visited[y][x]) {
-              visited[y][x] = true;
-              // Simplified corner detection for visual polygon
-              points.push([x, y]);
+            if (mask[y][x] === 1) {
+              startX = x;
+              startY = y;
+              break outer;
             }
           }
         }
-
-        return points.length > 3 ? points : [];
+        
+        if (startX === -1) return []; // No mask found
+        
+        let x = startX, y = startY;
+        let dir = 0; // Start moving right
+        
+        // Trace contour using Moore neighborhood algorithm
+        do {
+          points.push([x, y]);
+          visited[y][x] = true;
+          
+          // Check 8 neighbors starting from current direction
+          let newDir = (dir + 5) % 8; // Start checking counter-clockwise
+          let found = false;
+          
+          for (let i = 0; i < 8; i++) {
+            const nd = (newDir + i) % 8;
+            const dx = directions[nd][0];
+            const dy = directions[nd][1];
+            const nx = x + dx;
+            const ny = y + dy;
+            
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny][nx] === 1) {
+              x = nx;
+              y = ny;
+              dir = nd;
+              found = true;
+              break;
+            }
+          }
+          
+          if (!found) break; // No neighbors found
+        } while (x !== startX || y !== startY);
+        
+        // Simplify polygon while preserving shape
+        const simplifiedPoints: Array<[number, number]> = [];
+        if (points.length > 2) {
+          simplifiedPoints.push(points[0]);
+          for (let i = 1; i < points.length - 1; i++) {
+            const [x0, y0] = points[i-1];
+            const [x1, y1] = points[i];
+            const [x2, y2] = points[i+1];
+            
+            // Only keep point if direction changes significantly
+            const dx1 = x1 - x0;
+            const dy1 = y1 - y0;
+            const dx2 = x2 - x1;
+            const dy2 = y2 - y1;
+            const cross = dx1 * dy2 - dy1 * dx2;
+            
+            if (Math.abs(cross) > 0.5) {
+              simplifiedPoints.push(points[i]);
+            }
+          }
+          simplifiedPoints.push(points[points.length-1]);
+        }
+        
+        return simplifiedPoints.length >= 3 ? simplifiedPoints : [];
       };
 
       const segmented = data.masks.map((maskData: any, i: number) => {
@@ -207,6 +270,73 @@ export default function Index() {
   }, []);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);  // Uploaded file state
+  const [cameraState, setCameraState] = useState<'inactive' | 'starting' | 'active' | 'error'>('inactive');
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  
+  // Start camera handler with reset
+  const startCameraHandler = useCallback(async () => {
+    // Reset camera state before starting new session
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    setCameraState('starting');
+    try {
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        
+        // Wait for video to be ready
+        await new Promise<void>((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              setCameraState('active');
+              resolve();
+            };
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+      setCameraState('error');
+      alert("Could not access camera. Please ensure you've granted camera permissions.");
+    }
+  }, []);
+
+  // Stop camera handler
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraState('inactive');
+  }, []);
+
+  // Capture image from camera
+  const captureImage = useCallback(() => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (blob) {
+            const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+            setCameraState('inactive');
+            handleImageUpload(file);
+          }
+        }, 'image/jpeg', 0.95);
+      }
+    }
+  }, [handleImageUpload]);
 
   useEffect(() => {
     const handleResize = () => updateImageSize();
@@ -244,21 +374,92 @@ export default function Index() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <div className="flex flex-col items-center gap-3 md:gap-4">
-                <div className="p-3 md:p-4 bg-primary/10 rounded-full">
-                  <Upload className="w-8 h-8 md:w-12 md:h-12 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg md:text-xl font-semibold mb-2">Drop your image here</h3>
-                  <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                    or click to browse from your device
-                  </p>
-                  <Button onClick={openNewImage} size="lg" className="gap-2">
-                    <Upload className="w-4 h-4 md:w-5 md:h-5" />
-                    Choose Image
+              {cameraState === 'starting' || cameraState === 'active' ? (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative w-full max-w-md aspect-video bg-black rounded-lg overflow-hidden">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    {cameraState === 'starting' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                          <p className="text-white">Starting camera...</p>
+                        </div>
+                      </div>
+                    )}
+                    {cameraState === 'active' && (
+                      <div className="absolute inset-0 flex items-end justify-center pb-4">
+                        <Button
+                          onClick={captureImage}
+                          size="lg"
+                          className="rounded-full w-16 h-16 bg-red-500 hover:bg-red-600"
+                        >
+                          <span className="sr-only">Capture</span>
+                          <div className="w-10 h-10 bg-white rounded-full" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={stopCamera}
+                    size="lg"
+                    className="gap-2"
+                  >
+                    Cancel
                   </Button>
                 </div>
-              </div>
+              ) : cameraState === 'error' ? (
+                <div className="flex flex-col items-center gap-4 p-6 bg-red-50 rounded-lg">
+                  <div className="text-red-500 font-medium">Camera Error</div>
+                  <p className="text-red-700 text-center">
+                    Could not access camera. Please check permissions and try again.
+                  </p>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={startCameraHandler}
+                      variant="secondary"
+                    >
+                      Retry Camera
+                    </Button>
+                    <Button onClick={openNewImage}>
+                      Choose Image Instead
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 md:gap-4">
+                  <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                    <Upload className="w-8 h-8 md:w-12 md:h-12 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-semibold mb-2">Drop your image here</h3>
+                    <p className="text-muted-foreground mb-4 text-sm md:text-base">
+                      or choose from device or camera
+                    </p>
+                    <div className="flex gap-3">
+                      <Button onClick={openNewImage} size="lg" className="gap-2">
+                        <Upload className="w-4 h-4 md:w-5 md:h-5" />
+                        Choose Image
+                      </Button>
+                      <Button
+                        onClick={startCameraHandler}
+                        variant="secondary"
+                        size="lg"
+                        className="gap-2"
+                      >
+                        <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                        Use Camera
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         ) : (
@@ -297,9 +498,23 @@ export default function Index() {
                   <Shuffle className={cn("w-4 h-4", shuffleState.isShuffling && "animate-spin")} />
                   {shuffleState.isShuffling ? "Shuffling..." : "Shuffle"}
                 </Button>
-                <Button variant="secondary" onClick={openNewImage} size="sm" className="md:h-10">
-                  <Upload className="w-4 h-4 mr-1 md:mr-2" />
+                <Button variant="secondary" onClick={openNewImage} size="sm" className="md:h-10 gap-1">
+                  <Upload className="w-4 h-4" />
                   <span className="hidden sm:inline">New Image</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setImage(null);
+                    setPeople([]);
+                    setShuffleState({ isShuffling: false, selectedId: null, highlightedId: null });
+                    startCameraHandler();
+                  }}
+                  size="sm"
+                  className="md:h-10 gap-1"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span className="hidden sm:inline">Camera</span>
                 </Button>
               </div>
             </div>
@@ -394,14 +609,14 @@ export default function Index() {
                           points={polygonPoints}
                           className={cn(
                             "transition-all duration-200",
-                            isSelected && "fill-accent/30 stroke-accent stroke-2",
-                            isHighlighted && "fill-primary/30 stroke-primary stroke-2 animate-pulse",
-                            !isSelected && !isHighlighted && "fill-primary/20 stroke-primary/80 stroke-1"
+                            isSelected && "fill-accent/70 stroke-accent stroke-2",
+                            isHighlighted && "fill-primary/70 stroke-primary stroke-2 animate-pulse",
+                            !isSelected && !isHighlighted && "fill-primary/50 stroke-primary/80 stroke-1"
                           )}
                           style={{
-                            opacity: isSelected ? 0.5 : isHighlighted ? 0.8 : 0.5,
-                            filter: isSelected ? 'drop-shadow(0 0 8px rgba(0, 185, 185, 0.5))' :
-                                   isHighlighted ? 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))' : 'none'
+                            opacity: isSelected ? 0.8 : isHighlighted ? 0.9 : 0.7,
+                            filter: isSelected ? 'drop-shadow(0 0 8px rgba(0, 185, 185, 0.7))' :
+                                   isHighlighted ? 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.7))' : 'none'
                           }}
                         />
                       </svg>
