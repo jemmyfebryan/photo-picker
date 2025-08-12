@@ -94,13 +94,13 @@ export default function Index() {
         // });
 
         // Get URL from model map and ensure HTTPS
-        let url = MODEL_MAP[model];
-        if (!url.startsWith('https://')) {
-          url = url.replace('http://', 'https://');
-        }
+        // let url = MODEL_MAP[model];
+        // if (!url.startsWith('https://')) {
+        //   url = url.replace('http://', 'https://');
+        // }
 
         // Handle redirects to prevent mixed content issues
-        const response = await fetch(url, {
+        const response = await fetch("https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect", {
           method: "POST",
           body: formData,
           redirect: 'manual' // Handle redirects manually
