@@ -17,10 +17,10 @@ import { Features } from "../components/Features";
 import { HowItWorks } from "../components/HowItWorks";
 import { About } from "../components/About";
 
-// Model mapping for segmentation endpoints with forced HTTPS
+// Model mapping for segmentation endpoints
 const MODEL_MAP = {
-  "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect",
-  "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new"
+  "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/",
+  "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new/"
 };
 
 interface SegmentedPerson {
@@ -94,20 +94,20 @@ export default function Index() {
         // });
 
         // Get URL from model map and ensure HTTPS
-        // let url = MODEL_MAP[model];
-        // if (!url.startsWith('https://')) {
-        //   url = url.replace('http://', 'https://');
-        // }
+        let url = MODEL_MAP[model];
+        if (!url.startsWith('https://')) {
+          url = url.replace('http://', 'https://');
+        }
 
         // Handle redirects to prevent mixed content issues
-        const response = await fetch("https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect", {
+        const response = await fetch(url, {
           method: "POST",
           body: formData,
           redirect: 'manual' // Handle redirects manually
         }).then(async (res) => {
           if (res.type === 'opaqueredirect') {
             // If redirected, try again with forced HTTPS
-            return fetch("https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect".replace('http://', 'https://'), {
+            return fetch(url.replace('http://', 'https://'), {
               method: "POST",
               body: formData
             });
@@ -120,100 +120,23 @@ export default function Index() {
         // Set the resized base64 image returned from server
         setImage(`data:image/jpeg;base64,${data.original_image}`);
 
-        // Improved contour tracing for mask polygon with simplification
         const maskToPolygon = (mask: number[][]): Array<[number, number]> => {
           const h = mask.length;
           const w = mask[0].length;
           const visited = Array.from({ length: h }, () => Array(w).fill(false));
           const points: Array<[number, number]> = [];
-          const directions = [
-            [0, -1],
-            [1, -1],
-            [1, 0],
-            [1, 1],
-            [0, 1],
-            [-1, 1],
-            [-1, 0],
-            [-1, -1],
-          ];
 
-          // Find starting point (top-left mask pixel)
-          let startX = -1,
-            startY = -1;
-          outer: for (let y = 0; y < h; y++) {
+          for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
-              if (mask[y][x] === 1) {
-                startX = x;
-                startY = y;
-                break outer;
+              if (mask[y][x] === 1 && !visited[y][x]) {
+                visited[y][x] = true;
+                // Simplified corner detection for visual polygon
+                points.push([x, y]);
               }
             }
           }
 
-          if (startX === -1) return []; // No mask found
-
-          let x = startX,
-            y = startY;
-          let dir = 0; // Start moving right
-
-          // Trace contour using Moore neighborhood algorithm
-          do {
-            points.push([x, y]);
-            visited[y][x] = true;
-
-            // Check 8 neighbors starting from current direction
-            let newDir = (dir + 5) % 8; // Start checking counter-clockwise
-            let found = false;
-
-            for (let i = 0; i < 8; i++) {
-              const nd = (newDir + i) % 8;
-              const dx = directions[nd][0];
-              const dy = directions[nd][1];
-              const nx = x + dx;
-              const ny = y + dy;
-
-              if (
-                nx >= 0 &&
-                nx < w &&
-                ny >= 0 &&
-                ny < h &&
-                mask[ny][nx] === 1
-              ) {
-                x = nx;
-                y = ny;
-                dir = nd;
-                found = true;
-                break;
-              }
-            }
-
-            if (!found) break; // No neighbors found
-          } while (x !== startX || y !== startY);
-
-          // Simplify polygon while preserving shape
-          const simplifiedPoints: Array<[number, number]> = [];
-          if (points.length > 2) {
-            simplifiedPoints.push(points[0]);
-            for (let i = 1; i < points.length - 1; i++) {
-              const [x0, y0] = points[i - 1];
-              const [x1, y1] = points[i];
-              const [x2, y2] = points[i + 1];
-
-              // Only keep point if direction changes significantly
-              const dx1 = x1 - x0;
-              const dy1 = y1 - y0;
-              const dx2 = x2 - x1;
-              const dy2 = y2 - y1;
-              const cross = dx1 * dy2 - dy1 * dx2;
-
-              if (Math.abs(cross) > 0.5) {
-                simplifiedPoints.push(points[i]);
-              }
-            }
-            simplifiedPoints.push(points[points.length - 1]);
-          }
-
-          return simplifiedPoints.length >= 3 ? simplifiedPoints : [];
+          return points.length > 3 ? points : [];
         };
 
         const segmented = data.masks.map((maskData: any, i: number) => {
