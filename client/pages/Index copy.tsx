@@ -30,7 +30,7 @@ const MODEL_MAP = {
 
 interface SegmentedPerson {
   id: string;
-  polygons: Array<Array<[number, number]>>; // Array of polygons (one per connected component)
+  polygon: Array<[number, number]>; // Array of [x, y] coordinates
   bbox: { x: number; y: number; width: number; height: number }; // Bounding box for positioning
   confidence: number;
   area: number;
@@ -130,82 +130,45 @@ export default function Index() {
 
         // Enhanced contour tracing with hole detection and boundary optimization
         // Improved polygon tracing using Marching Squares algorithm
-        // Function to find connected components in the mask
-        const findConnectedComponents = (mask: number[][]): Array<Array<[number, number]>> => {
-          const h = mask.length;
-          const w = mask[0].length;
-          const visited = Array.from({ length: h }, () => Array(w).fill(false));
-          const components: Array<Array<[number, number]>> = [];
-
-          const dx = [0, 1, 0, -1];
-          const dy = [-1, 0, 1, 0];
-
-          for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-              if (mask[y][x] === 1 && !visited[y][x]) {
-                const component: Array<[number, number]> = [];
-                const queue: Array<[number, number]> = [[x, y]];
-                visited[y][x] = true;
-
-                while (queue.length > 0) {
-                  const [cx, cy] = queue.shift()!;
-                  component.push([cx, cy]);
-
-                  for (let i = 0; i < 4; i++) {
-                    const nx = cx + dx[i];
-                    const ny = cy + dy[i];
-
-                    if (
-                      nx >= 0 && nx < w &&
-                      ny >= 0 && ny < h &&
-                      mask[ny][nx] === 1 &&
-                      !visited[ny][nx]
-                    ) {
-                      visited[ny][nx] = true;
-                      queue.push([nx, ny]);
-                    }
-                  }
-                }
-                components.push(component);
-              }
-            }
-          }
-          return components;
-        };
-
-        // Trace contour of a single connected component
-        const traceContour = (component: Array<[number, number]>, mask: number[][]): Array<[number, number]> => {
-          if (component.length === 0) return [];
-          
-          // Find starting point (topmost then leftmost)
-          let startPoint = component[0];
-          for (const point of component) {
-            if (point[1] < startPoint[1] || (point[1] === startPoint[1] && point[0] < startPoint[0])) {
-              startPoint = point;
-            }
-          }
-          
-          const [startX, startY] = startPoint;
+        const maskToPolygon = (mask: number[][]): Array<[number, number]> => {
           const h = mask.length;
           const w = mask[0].length;
           const points: Array<[number, number]> = [];
-          const dx = [0, 1, 1, 1, 0, -1, -1, -1];
-          const dy = [-1, -1, 0, 1, 1, 1, 0, -1];
+          
+          // Find starting point (topmost then leftmost)
+          let startX = -1, startY = -1;
+          outer: for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              if (mask[y][x] === 1) {
+                startX = x;
+                startY = y;
+                break outer;
+              }
+            }
+          }
+          
+          if (startX === -1) return []; // No mask found
+          
           let x = startX;
           let y = startY;
+          const dx = [0, 1, 1, 1, 0, -1, -1, -1];
+          const dy = [-1, -1, 0, 1, 1, 1, 0, -1];
           let dir = 7; // Start moving up
           let count = 0;
           const maxCount = w * h * 8; // Prevent infinite loops
           
           do {
+            // Add current point
             points.push([x, y]);
             
+            // Check neighbors in clockwise order starting from current direction
             let found = false;
             for (let i = 0; i < 8; i++) {
               const nd = (dir + i) % 8;
               const nx = x + dx[nd];
               const ny = y + dy[nd];
               
+              // If neighbor is within bounds and part of mask
               if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny][nx] === 1) {
                 x = nx;
                 y = ny;
@@ -219,6 +182,7 @@ export default function Index() {
             count++;
           } while ((x !== startX || y !== startY) && count < maxCount);
           
+          // Close the polygon if needed
           if (points.length > 0 &&
               (points[0][0] !== points[points.length-1][0] ||
                points[0][1] !== points[points.length-1][1])) {
@@ -228,27 +192,19 @@ export default function Index() {
           return points.length >= 3 ? points : [];
         };
 
-        const maskToPolygons = (mask: number[][]): Array<Array<[number, number]>> => {
-          const components = findConnectedComponents(mask);
-          return components.map(component => traceContour(component, mask));
-        };
-
         const segmented = data.masks.map((maskData: any, i: number) => {
-          const polygons = maskToPolygons(maskData.mask);
-          
-          // Flatten all points to compute bounding box
-          const allPoints = polygons.flat();
-          const xs = allPoints.map((p) => p[0]);
-          const ys = allPoints.map((p) => p[1]);
+          const polygon = maskToPolygon(maskData.mask);
+          const xs = polygon.map((p) => p[0]);
+          const ys = polygon.map((p) => p[1]);
 
-          const minX = Math.min(...xs);
-          const maxX = Math.max(...xs);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
+          const minX = xs.reduce((a, b) => Math.min(a, b), Infinity);
+          const maxX = xs.reduce((a, b) => Math.max(a, b), -Infinity);
+          const minY = ys.reduce((a, b) => Math.min(a, b), Infinity);
+          const maxY = ys.reduce((a, b) => Math.max(a, b), -Infinity);
 
           return {
             id: `person-${i}`,
-            polygons,
+            polygon,
             bbox: {
               x: minX,
               y: minY,
@@ -820,6 +776,14 @@ export default function Index() {
                     const scaleX = renderedWidth / naturalWidth;
                     const scaleY = renderedHeight / naturalHeight;
 
+                    // Convert polygon coordinates to SVG coordinates
+                    const polygonPoints = person.polygon
+                      .map(
+                        ([x, y]) =>
+                          `${x * scaleX + offsetX},${y * scaleY + offsetY}`,
+                      )
+                      .join(" ");
+
                     return (
                       <div key={person.id} className="absolute inset-0">
                         <svg
@@ -829,43 +793,31 @@ export default function Index() {
                           width={containerWidth}
                           height={containerHeight}
                         >
-                          {person.polygons.map((polygon, index) => {
-                            const polygonPoints = polygon
-                              .map(
-                                ([x, y]) =>
-                                  `${x * scaleX + offsetX},${y * scaleY + offsetY}`
-                              )
-                              .join(" ");
-                            
-                            return (
-                              <polygon
-                                key={index}
-                                points={polygonPoints}
-                                className={cn(
-                                  "transition-all duration-200",
-                                  isSelected &&
-                                    "fill-accent/70 stroke-accent stroke-2",
-                                  isHighlighted &&
-                                    "fill-primary/70 stroke-primary stroke-2 animate-pulse",
-                                  !isSelected &&
-                                    !isHighlighted &&
-                                    "fill-primary/50 stroke-primary/80 stroke-1",
-                                )}
-                                style={{
-                                  opacity: isSelected
-                                    ? 0.8
-                                    : isHighlighted
-                                      ? 0.9
-                                      : 0.7,
-                                  filter: isSelected
-                                    ? "drop-shadow(0 0 8px rgba(0, 185, 185, 0.7))"
-                                    : isHighlighted
-                                      ? "drop-shadow(0 0 8px rgba(139, 92, 246, 0.7))"
-                                      : "none",
-                                }}
-                              />
-                            );
-                          })}
+                          <polygon
+                            points={polygonPoints}
+                            className={cn(
+                              "transition-all duration-200",
+                              isSelected &&
+                                "fill-accent/70 stroke-accent stroke-2",
+                              isHighlighted &&
+                                "fill-primary/70 stroke-primary stroke-2 animate-pulse",
+                              !isSelected &&
+                                !isHighlighted &&
+                                "fill-primary/50 stroke-primary/80 stroke-1",
+                            )}
+                            style={{
+                              opacity: isSelected
+                                ? 0.8
+                                : isHighlighted
+                                  ? 0.9
+                                  : 0.7,
+                              filter: isSelected
+                                ? "drop-shadow(0 0 8px rgba(0, 185, 185, 0.7))"
+                                : isHighlighted
+                                  ? "drop-shadow(0 0 8px rgba(139, 92, 246, 0.7))"
+                                  : "none",
+                            }}
+                          />
                         </svg>
 
                         {isSelected && (

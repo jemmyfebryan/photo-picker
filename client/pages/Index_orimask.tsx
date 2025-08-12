@@ -30,7 +30,7 @@ const MODEL_MAP = {
 
 interface SegmentedPerson {
   id: string;
-  polygons: Array<Array<[number, number]>>; // Array of polygons (one per connected component)
+  maskImage: ImageData; // ImageData for rendering the mask
   bbox: { x: number; y: number; width: number; height: number }; // Bounding box for positioning
   confidence: number;
   area: number;
@@ -57,6 +57,7 @@ export default function Index() {
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const maskCanvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
 
   // Simulate person instance segmentation (in a real app, you'd use models like Mask R-CNN, YOLACT, etc.)
   const segmentPeople = useCallback(
@@ -129,126 +130,58 @@ export default function Index() {
         setImage(`data:image/jpeg;base64,${data.original_image}`);
 
         // Enhanced contour tracing with hole detection and boundary optimization
-        // Improved polygon tracing using Marching Squares algorithm
-        // Function to find connected components in the mask
-        const findConnectedComponents = (mask: number[][]): Array<Array<[number, number]>> => {
+        // Render mask directly without polygon conversion
+        const maskToImageData = (mask: number[][], color: string): ImageData => {
           const h = mask.length;
           const w = mask[0].length;
-          const visited = Array.from({ length: h }, () => Array(w).fill(false));
-          const components: Array<Array<[number, number]>> = [];
-
-          const dx = [0, 1, 0, -1];
-          const dy = [-1, 0, 1, 0];
-
+          const imageData = new ImageData(w, h);
+          
+          // Parse the color string (e.g., "rgba(0,185,185,0.7)")
+          const rgba = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+          if (!rgba) return imageData;
+          
+          const r = parseInt(rgba[1]);
+          const g = parseInt(rgba[2]);
+          const b = parseInt(rgba[3]);
+          const a = rgba[4] ? Math.round(parseFloat(rgba[4]) * 255) : 255;
+          
           for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
-              if (mask[y][x] === 1 && !visited[y][x]) {
-                const component: Array<[number, number]> = [];
-                const queue: Array<[number, number]> = [[x, y]];
-                visited[y][x] = true;
-
-                while (queue.length > 0) {
-                  const [cx, cy] = queue.shift()!;
-                  component.push([cx, cy]);
-
-                  for (let i = 0; i < 4; i++) {
-                    const nx = cx + dx[i];
-                    const ny = cy + dy[i];
-
-                    if (
-                      nx >= 0 && nx < w &&
-                      ny >= 0 && ny < h &&
-                      mask[ny][nx] === 1 &&
-                      !visited[ny][nx]
-                    ) {
-                      visited[ny][nx] = true;
-                      queue.push([nx, ny]);
-                    }
-                  }
-                }
-                components.push(component);
+              const idx = (y * w + x) * 4;
+              if (mask[y][x] === 1) {
+                imageData.data[idx] = r;     // R
+                imageData.data[idx+1] = g;   // G
+                imageData.data[idx+2] = b;   // B
+                imageData.data[idx+3] = a;   // A
               }
             }
           }
-          return components;
-        };
-
-        // Trace contour of a single connected component
-        const traceContour = (component: Array<[number, number]>, mask: number[][]): Array<[number, number]> => {
-          if (component.length === 0) return [];
           
-          // Find starting point (topmost then leftmost)
-          let startPoint = component[0];
-          for (const point of component) {
-            if (point[1] < startPoint[1] || (point[1] === startPoint[1] && point[0] < startPoint[0])) {
-              startPoint = point;
-            }
-          }
-          
-          const [startX, startY] = startPoint;
-          const h = mask.length;
-          const w = mask[0].length;
-          const points: Array<[number, number]> = [];
-          const dx = [0, 1, 1, 1, 0, -1, -1, -1];
-          const dy = [-1, -1, 0, 1, 1, 1, 0, -1];
-          let x = startX;
-          let y = startY;
-          let dir = 7; // Start moving up
-          let count = 0;
-          const maxCount = w * h * 8; // Prevent infinite loops
-          
-          do {
-            points.push([x, y]);
-            
-            let found = false;
-            for (let i = 0; i < 8; i++) {
-              const nd = (dir + i) % 8;
-              const nx = x + dx[nd];
-              const ny = y + dy[nd];
-              
-              if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny][nx] === 1) {
-                x = nx;
-                y = ny;
-                dir = (nd + 5) % 8; // Turn 135 degrees counter-clockwise
-                found = true;
-                break;
-              }
-            }
-            
-            if (!found) break;
-            count++;
-          } while ((x !== startX || y !== startY) && count < maxCount);
-          
-          if (points.length > 0 &&
-              (points[0][0] !== points[points.length-1][0] ||
-               points[0][1] !== points[points.length-1][1])) {
-            points.push([points[0][0], points[0][1]]);
-          }
-          
-          return points.length >= 3 ? points : [];
-        };
-
-        const maskToPolygons = (mask: number[][]): Array<Array<[number, number]>> => {
-          const components = findConnectedComponents(mask);
-          return components.map(component => traceContour(component, mask));
+          return imageData;
         };
 
         const segmented = data.masks.map((maskData: any, i: number) => {
-          const polygons = maskToPolygons(maskData.mask);
+          const mask = maskData.mask;
+          const h = mask.length;
+          const w = mask[0].length;
           
-          // Flatten all points to compute bounding box
-          const allPoints = polygons.flat();
-          const xs = allPoints.map((p) => p[0]);
-          const ys = allPoints.map((p) => p[1]);
-
-          const minX = Math.min(...xs);
-          const maxX = Math.max(...xs);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
+          // Calculate bounding box
+          let minX = w, maxX = 0, minY = h, maxY = 0;
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              if (mask[y][x] === 1) {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+              }
+            }
+          }
 
           return {
             id: `person-${i}`,
-            polygons,
+            mask, // Store the original mask data
+            maskImage: maskToImageData(mask, "rgba(0,185,185,0.7)"), // Default color
             bbox: {
               x: minX,
               y: minY,
@@ -478,6 +411,21 @@ export default function Index() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [updateImageSize]);
+
+  // Draw masks on canvases when people data changes
+  useEffect(() => {
+    people.forEach(person => {
+      const canvas = maskCanvasRefs.current.get(person.id);
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Clear and draw mask
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(person.maskImage, 0, 0);
+    });
+  }, [people]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -820,53 +768,30 @@ export default function Index() {
                     const scaleX = renderedWidth / naturalWidth;
                     const scaleY = renderedHeight / naturalHeight;
 
+
                     return (
                       <div key={person.id} className="absolute inset-0">
-                        <svg
-                          className="absolute inset-0 w-full h-full pointer-events-none"
-                          style={{ zIndex: 10 }}
-                          viewBox={`0 0 ${containerWidth} ${containerHeight}`}
+                        <canvas
+                          ref={(el) => {
+                            if (el) maskCanvasRefs.current.set(person.id, el);
+                            else maskCanvasRefs.current.delete(person.id);
+                          }}
                           width={containerWidth}
                           height={containerHeight}
-                        >
-                          {person.polygons.map((polygon, index) => {
-                            const polygonPoints = polygon
-                              .map(
-                                ([x, y]) =>
-                                  `${x * scaleX + offsetX},${y * scaleY + offsetY}`
-                              )
-                              .join(" ");
-                            
-                            return (
-                              <polygon
-                                key={index}
-                                points={polygonPoints}
-                                className={cn(
-                                  "transition-all duration-200",
-                                  isSelected &&
-                                    "fill-accent/70 stroke-accent stroke-2",
-                                  isHighlighted &&
-                                    "fill-primary/70 stroke-primary stroke-2 animate-pulse",
-                                  !isSelected &&
-                                    !isHighlighted &&
-                                    "fill-primary/50 stroke-primary/80 stroke-1",
-                                )}
-                                style={{
-                                  opacity: isSelected
-                                    ? 0.8
-                                    : isHighlighted
-                                      ? 0.9
-                                      : 0.7,
-                                  filter: isSelected
-                                    ? "drop-shadow(0 0 8px rgba(0, 185, 185, 0.7))"
-                                    : isHighlighted
-                                      ? "drop-shadow(0 0 8px rgba(139, 92, 246, 0.7))"
-                                      : "none",
-                                }}
-                              />
-                            );
-                          })}
-                        </svg>
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            opacity: isSelected
+                              ? 0.8
+                              : isHighlighted
+                                ? 0.9
+                                : 0.7,
+                            filter: isSelected
+                              ? "drop-shadow(0 0 8px rgba(0, 185, 185, 0.7))"
+                              : isHighlighted
+                                ? "drop-shadow(0 0 8px rgba(139, 92, 246, 0.7))"
+                                : "none",
+                          }}
+                        />
 
                         {isSelected && (
                           <div
