@@ -17,11 +17,18 @@ import { Features } from "../components/Features";
 import { HowItWorks } from "../components/HowItWorks";
 import { About } from "../components/About";
 
-// Model mapping for segmentation endpoints
+// Model mapping for segmentation endpoints with forced HTTPS
 const MODEL_MAP = {
   "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect",
   "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new"
 };
+
+// Force HTTPS for all endpoints
+Object.keys(MODEL_MAP).forEach(key => {
+  if (MODEL_MAP[key].startsWith("http://")) {
+    MODEL_MAP[key] = MODEL_MAP[key].replace("http://", "https://");
+  }
+});
 
 interface SegmentedPerson {
   id: string;
