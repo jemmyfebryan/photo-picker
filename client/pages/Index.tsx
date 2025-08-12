@@ -18,15 +18,15 @@ import { HowItWorks } from "../components/HowItWorks";
 import { About } from "../components/About";
 
 // Model mapping for segmentation endpoints
-// const MODEL_MAP = {
-//   "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/",
-//   "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new/"
-// };
-
 const MODEL_MAP = {
-  "default": "/api",
-  "new": "/api_new"
+  "default": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/",
+  "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new"
 };
+
+// const MODEL_MAP = {
+//   "default": "/api",
+//   "new": "/api_new"
+// };
 
 interface SegmentedPerson {
   id: string;
