@@ -69,12 +69,15 @@ export default function Index() {
         const threshold = 0;
 
         // ⬇️ Limit size to 768px max on either dimension
-        const maxDim = 768;
-        if (width > maxDim || height > maxDim) {
-          const scale = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
+        // const maxDim = 768;
+        // if (width > maxDim || height > maxDim) {
+        //   const scale = Math.min(maxDim / width, maxDim / height);
+        //   width = Math.round(width * scale);
+        //   height = Math.round(height * scale);
+        // }
+
+        width = 640
+        height = 400
 
         const formData = new FormData();
         formData.append("file", file);
