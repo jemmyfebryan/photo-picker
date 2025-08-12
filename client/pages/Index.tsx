@@ -23,13 +23,6 @@ const MODEL_MAP = {
   "new": "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new"
 };
 
-// Force HTTPS for all endpoints
-Object.keys(MODEL_MAP).forEach(key => {
-  if (MODEL_MAP[key].startsWith("http://")) {
-    MODEL_MAP[key] = MODEL_MAP[key].replace("http://", "https://");
-  }
-});
-
 interface SegmentedPerson {
   id: string;
   polygon: Array<[number, number]>; // Array of [x, y] coordinates
@@ -100,25 +93,27 @@ export default function Index() {
         //   body: formData
         // });
 
-        let response;
-
-        if (model == "default") {
-          response = await fetch(
-            "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect",
-            {
-              method: "POST",
-              body: formData,
-            },
-          );
-        } else if (model == "new") {
-          response = await fetch(
-            "https://lucky-photo-picker-319016205501.asia-southeast2.run.app/detect/new",
-            {
-              method: "POST",
-              body: formData,
-            },
-          );
+        // Get URL from model map and ensure HTTPS
+        let url = MODEL_MAP[model];
+        if (!url.startsWith('https://')) {
+          url = url.replace('http://', 'https://');
         }
+
+        // Handle redirects to prevent mixed content issues
+        const response = await fetch(url, {
+          method: "POST",
+          body: formData,
+          redirect: 'manual' // Handle redirects manually
+        }).then(async (res) => {
+          if (res.type === 'opaqueredirect') {
+            // If redirected, try again with forced HTTPS
+            return fetch(url.replace('http://', 'https://'), {
+              method: "POST",
+              body: formData
+            });
+          }
+          return res;
+        });
 
         const data = await response.json();
 
