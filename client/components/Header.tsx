@@ -28,16 +28,28 @@ export const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-foreground/80 hover:text-primary transition-colors">
+            <a
+              href="#features"
+              className="text-foreground/80 hover:text-primary transition-colors"
+            >
               Features
             </a>
-            <a href="#how-it-works" className="text-foreground/80 hover:text-primary transition-colors">
+            <a
+              href="#how-it-works"
+              className="text-foreground/80 hover:text-primary transition-colors"
+            >
               How It Works
             </a>
-            <a href="#about" className="text-foreground/80 hover:text-primary transition-colors">
+            <a
+              href="#about"
+              className="text-foreground/80 hover:text-primary transition-colors"
+            >
               About
             </a>
-            <a href="#contact" className="text-foreground/80 hover:text-primary transition-colors">
+            <a
+              href="#contact"
+              className="text-foreground/80 hover:text-primary transition-colors"
+            >
               Contact
             </a>
           </nav>
@@ -49,7 +61,11 @@ export const Header = () => {
             className="md:hidden"
             onClick={toggleMenu}
           >
-            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {isMenuOpen ? (
+              <X className="w-5 h-5" />
+            ) : (
+              <Menu className="w-5 h-5" />
+            )}
           </Button>
         </div>
 
@@ -57,29 +73,29 @@ export const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <nav className="flex flex-col gap-4">
-              <a 
-                href="#features" 
+              <a
+                href="#features"
                 className="text-foreground/80 hover:text-primary transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </a>
-              <a 
-                href="#how-it-works" 
+              <a
+                href="#how-it-works"
                 className="text-foreground/80 hover:text-primary transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 How It Works
               </a>
-              <a 
-                href="#about" 
+              <a
+                href="#about"
                 className="text-foreground/80 hover:text-primary transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 About
               </a>
-              <a 
-                href="#contact" 
+              <a
+                href="#contact"
                 className="text-foreground/80 hover:text-primary transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >

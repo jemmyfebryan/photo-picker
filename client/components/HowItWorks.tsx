@@ -7,37 +7,40 @@ export const HowItWorks = () => {
       step: 1,
       icon: Upload,
       title: "Upload Your Photo",
-      description: "Drag and drop an image or use your camera to capture a new photo. We support all common image formats."
+      description:
+        "Drag and drop an image or use your camera to capture a new photo. We support all common image formats.",
     },
     {
       step: 2,
       icon: Brain,
       title: "AI Processing",
-      description: "Our advanced AI algorithms analyze your image and segment all detectable objects with precise boundaries."
+      description:
+        "Our advanced AI algorithms analyze your image and segment all detectable objects with precise boundaries.",
     },
     {
       step: 3,
       icon: Shuffle,
       title: "Smart Selection",
-      description: "Click shuffle to randomly select one of the detected objects with our engaging animation system."
+      description:
+        "Click shuffle to randomly select one of the detected objects with our engaging animation system.",
     },
     {
       step: 4,
       icon: Sparkles,
       title: "Get Results",
-      description: "See your selected object highlighted with visual effects. Shuffle again or try a new image anytime."
-    }
+      description:
+        "See your selected object highlighted with visual effects. Shuffle again or try a new image anytime.",
+    },
   ];
 
   return (
     <section id="how-it-works" className="py-16 bg-card">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            How It Works
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Get started with PhotoPicker in just four simple steps. Our AI-powered process makes object selection effortless.
+            Get started with PhotoPicker in just four simple steps. Our
+            AI-powered process makes object selection effortless.
           </p>
         </div>
 
